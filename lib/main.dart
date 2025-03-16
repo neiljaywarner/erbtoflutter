@@ -35,9 +35,31 @@ class _RefTestScreenState extends State<RefTestScreen> {
   final TextEditingController answerController = TextEditingController();
   double referenceRecallGrade = 60.0; 
   int overdueReferences = 5; 
-  List<String> pastQuestions = ['Question 1', 'Question 2']; 
+  List<String> pastQuestions = []; 
   String memverseUserID = 'user123'; 
-
+  int currentVerseIndex = 0;
+  final List<Map<String, String>> versesList = [
+    {
+      "text": "In the beginning God created the heavens and the earth.",
+      "reference": "Genesis 1:1"
+    },
+    {
+      "text": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
+      "reference": "John 3:16"
+    },
+    {
+      "text": "Trust in the LORD with all your heart; do not depend on your own understanding.",
+      "reference": "Proverbs 3:5"
+    },
+    {
+      "text": "I can do everything through Christ, who gives me strength.",
+      "reference": "Philippians 4:13"
+    },
+    {
+      "text": "And we know that God causes everything to work together for the good of those who love God and are called according to his purpose for them.",
+      "reference": "Romans 8:28"
+    }
+  ];
   final List<String> bookSuggestions = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
     '1 Kings', '2 Kings','1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalm', 'Proverbs',
@@ -165,6 +187,32 @@ class _RefTestScreenState extends State<RefTestScreen> {
     return null;
   }
 
+  String _generateFeedbackSummary(String userAnswer, String expectedRef) {
+    final expectedParts = _parseReference(expectedRef);
+    final userParts = _parseReference(userAnswer);
+    
+    if (userParts == null || expectedParts == null) {
+      return "$userAnswer-[$expectedRef] Incorrect format";
+    }
+    
+    if (userAnswer.trim().toLowerCase() == expectedRef.toLowerCase()) {
+      return "$userAnswer-[$expectedRef] Correct!";
+    }
+    
+    // Compare components
+    bool bookMatch = userParts.book.toLowerCase() == expectedParts.book.toLowerCase();
+    bool chapterMatch = userParts.chapter == expectedParts.chapter;
+    bool verseMatch = userParts.verse == expectedParts.verse;
+    
+    if (bookMatch && chapterMatch && !verseMatch) {
+      return "$userAnswer-[$expectedRef] Correct book and chapter";
+    } else if (bookMatch && !chapterMatch) {
+      return "$userAnswer-[$expectedRef] Correct book";
+    } else {
+      return "$userAnswer-[$expectedRef] Incorrect";
+    }
+  }
+
   void submitAnswer() {
     if (isValidVerseRef(answerController.text)) {
       setState(() {
@@ -187,7 +235,38 @@ class _RefTestScreenState extends State<RefTestScreen> {
         if (isAnswerCorrect) {
           referenceRecallGrade = (referenceRecallGrade + 100) / 2;
           if (referenceRecallGrade > 100) referenceRecallGrade = 100;
+          
+          // Decrease overdue references count when answer is correct
+          if (overdueReferences > 0) {
+            overdueReferences--;
+          }
         }
+        
+        // Add the feedback summary to past questions
+        pastQuestions.add(_generateFeedbackSummary(answerController.text, expectedReference));
+        // Keep only the last 5 questions
+        if (pastQuestions.length > 5) {
+          pastQuestions = pastQuestions.sublist(pastQuestions.length - 5);
+        }
+      });
+      
+      // Show feedback in a snackbar
+      final String detailedFeedback = isAnswerCorrect 
+          ? 'Great job! You correctly identified this verse as $expectedReference.'
+          : getDetailedFeedback(answerController.text);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(detailedFeedback),
+          backgroundColor: isAnswerCorrect ? Colors.green : Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // Automatically move to next verse after a short delay 
+      // regardless of whether the answer was correct
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        _loadNextVerse();
       });
       
       debugPrint('Answer submitted: ${answerController.text}, Correct: $isAnswerCorrect');
@@ -248,10 +327,39 @@ class _RefTestScreenState extends State<RefTestScreen> {
     );
   }
 
+  void _setRandomVerse() {
+    setState(() {
+      currentVerseIndex = DateTime.now().millisecondsSinceEpoch % versesList.length;
+      verseText = versesList[currentVerseIndex]["text"]!;
+      expectedReference = versesList[currentVerseIndex]["reference"]!;
+    });
+  }
+  
+  // Function to load next verse
+  void _loadNextVerse() {
+    setState(() {
+      // Reset the answer field and submission state
+      answerController.clear();
+      hasSubmittedAnswer = false;
+      isAnswerCorrect = false;
+      
+      // Increment question number
+      questionNumber++;
+      
+      // Move to next verse (cyclically)
+      currentVerseIndex = (currentVerseIndex + 1) % versesList.length;
+      verseText = versesList[currentVerseIndex]["text"]!;
+      expectedReference = versesList[currentVerseIndex]["reference"]!;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     answerFocusNode.requestFocus();
+    
+    // Set the initial verse
+    _setRandomVerse();
   }
 
   @override
@@ -461,22 +569,27 @@ class _RefTestScreenState extends State<RefTestScreen> {
         if (hasSubmittedAnswer)
           Padding(
             padding: const EdgeInsets.only(top: 16.0),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  isAnswerCorrect ? Icons.thumb_up : Icons.error_outline,
-                  color: isAnswerCorrect ? Colors.green : Colors.orange,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    isAnswerCorrect 
-                        ? 'Great job! You correctly identified this verse as $expectedReference.'
-                        : getDetailedFeedback(answerController.text),
-                    style: TextStyle(
+                Row(
+                  children: [
+                    Icon(
+                      isAnswerCorrect ? Icons.thumb_up : Icons.error_outline,
                       color: isAnswerCorrect ? Colors.green : Colors.orange,
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isAnswerCorrect 
+                            ? 'Great job! You correctly identified this verse as $expectedReference.'
+                            : getDetailedFeedback(answerController.text),
+                        style: TextStyle(
+                          color: isAnswerCorrect ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -583,10 +696,27 @@ class _RefTestScreenState extends State<RefTestScreen> {
                 key: const Key('past-questions'),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: pastQuestions.map((question) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Text(question),
-                  )).toList(),
+                  children: pastQuestions.isEmpty
+                      ? [const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4.0),
+                          child: Text('No previous questions yet'),
+                        )]
+                      : pastQuestions.map((feedback) {
+                          // Determine if this was a correct answer
+                          final bool wasCorrect = feedback.contains(' Correct!');
+                          
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text(
+                              feedback,
+                              style: TextStyle(
+                                color: wasCorrect ? Colors.green : Colors.orange,
+                                fontWeight: pastQuestions.indexOf(feedback) == pastQuestions.length - 1 
+                                    ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          );
+                        }).toList(),
                 ),
               ),
             ],
