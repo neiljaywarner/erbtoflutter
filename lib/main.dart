@@ -58,14 +58,57 @@ class _RefTestScreenState extends State<RefTestScreen> {
     return referenceRecallGrade;
   }
 
-  void submitAnswer() {
-    int questionScore = scoreRef(answerController.text);
-    double newGrade = updateRefGrade(questionScore);
-    debugPrint('Answer submitted: ${answerController.text}, Score: $questionScore, New Grade: $newGrade');
-  }
+  bool isReferenceValid = true;
+  String validationMessage = '';
 
   bool isValidVerseRef(String text) {
-    return text.isNotEmpty;
+    if (text.isEmpty) {
+      setState(() {
+        isReferenceValid = false;
+        validationMessage = 'Reference cannot be empty';
+      });
+      return false;
+    }
+
+    final bookChapterVersePattern = RegExp(
+      r'^(([1-3]\s+)?[A-Za-z]+(\s+[A-Za-z]+)*)\s+(\d+):(\d+)(-\d+)?$'
+    );
+    
+    if (bookChapterVersePattern.hasMatch(text)) {
+      final match = bookChapterVersePattern.firstMatch(text);
+      final bookName = match?.group(1)?.trim() ?? '';
+      
+      if (bookSuggestions.any((book) => 
+          book.toLowerCase() == bookName.toLowerCase())) {
+        setState(() {
+          isReferenceValid = true;
+          validationMessage = '';
+        });
+        return true;
+      } else {
+        setState(() {
+          isReferenceValid = false;
+          validationMessage = 'Invalid book name';
+        });
+        return false;
+      }
+    } else {
+      setState(() {
+        isReferenceValid = false;
+        validationMessage = 'Format should be "Book Chapter:Verse"';
+      });
+      return false;
+    }
+  }
+
+  void submitAnswer() {
+    if (isValidVerseRef(answerController.text)) {
+      int questionScore = scoreRef(answerController.text);
+      double newGrade = updateRefGrade(questionScore);
+      debugPrint('Answer submitted: ${answerController.text}, Score: $questionScore, New Grade: $newGrade');
+    } else {
+      debugPrint('Invalid reference: ${answerController.text}');
+    }
   }
 
   @override
@@ -183,6 +226,10 @@ class _RefTestScreenState extends State<RefTestScreen> {
               },
               onSelected: (String selection) {
                 answerController.text = selection;
+                setState(() {
+                  isReferenceValid = true;
+                  validationMessage = '';
+                });
               },
               fieldViewBuilder: (
                 BuildContext context,
@@ -198,20 +245,30 @@ class _RefTestScreenState extends State<RefTestScreen> {
                 
                 fieldController.text = answerController.text;
                 
-                return TextField(
-                  controller: fieldController,
-                  focusNode: fieldFocusNode,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Enter reference',
-                  ),
-                  onChanged: (value) {
-                    answerController.text = value;
-                  },
-                  onSubmitted: (value) {
-                    answerController.text = value;
-                    submitAnswer();
-                  },
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: fieldController,
+                      focusNode: fieldFocusNode,
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        hintText: 'Enter reference (e.g., Genesis 1:1)',
+                        errorText: isReferenceValid ? null : validationMessage,
+                        helperText: 'Format: Book Chapter:Verse',
+                        helperStyle: TextStyle(color: Colors.grey[600]),
+                      ),
+                      onChanged: (value) {
+                        answerController.text = value;
+                      },
+                      onSubmitted: (value) {
+                        answerController.text = value;
+                        submitAnswer();
+                      },
+                    ),
+                    if (!isReferenceValid && validationMessage.isNotEmpty)
+                      const SizedBox(height: 4),
+                  ],
                 );
               },
               optionsViewBuilder: (
