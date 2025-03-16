@@ -105,11 +105,84 @@ class _RefTestScreenState extends State<RefTestScreen> {
     }
   }
 
+  String getDetailedFeedback(String userAnswer) {
+    if (userAnswer.trim().isEmpty) {
+      return 'Please enter a reference.';
+    }
+    
+    if (userAnswer.trim().toLowerCase() == expectedReference.toLowerCase()) {
+      return 'Great job! You correctly identified this verse as $expectedReference.';
+    }
+    
+    // Try to parse the references
+    final expectedParts = _parseReference(expectedReference);
+    final userParts = _parseReference(userAnswer);
+    
+    // If either parsing fails, return a generic message
+    if (expectedParts == null || userParts == null) {
+      return 'That\'s not quite right. The correct reference is $expectedReference.';
+    }
+    
+    // Debug output to verify parsing
+    debugPrint('Expected: ${expectedParts.book}, ${expectedParts.chapter}:${expectedParts.verse}');
+    debugPrint('User: ${userParts.book}, ${userParts.chapter}:${userParts.verse}');
+    
+    // Compare individual components
+    bool bookMatch = userParts.book.toLowerCase() == expectedParts.book.toLowerCase();
+    bool chapterMatch = userParts.chapter == expectedParts.chapter;
+    bool verseMatch = userParts.verse == expectedParts.verse;
+    
+    if (bookMatch && chapterMatch && !verseMatch) {
+      return 'You got the book and chapter right, but the verse is incorrect. The correct reference is $expectedReference.';
+    } else if (bookMatch && !chapterMatch) {
+      return 'You got the book right, but the chapter is incorrect. The correct reference is $expectedReference.';
+    } else if (!bookMatch) {
+      return 'The book you entered is incorrect. The correct reference is $expectedReference.';
+    } else {
+      // Fallback for unexpected cases
+      return 'That\'s not quite right. The correct reference is $expectedReference.';
+    }
+  }
+  
+  // More reliable reference parsing
+  ParsedReference? _parseReference(String reference) {
+    try {
+      final bookChapterVersePattern = RegExp(
+        r'^(([1-3]\s+)?[A-Za-z]+(\s+[A-Za-z]+)*)\s+(\d+):(\d+)(-\d+)?$'
+      );
+      
+      final match = bookChapterVersePattern.firstMatch(reference);
+      if (match != null) {
+        final book = match.group(1)?.trim() ?? '';
+        final chapter = int.tryParse(match.group(4) ?? '0') ?? 0;
+        final verse = int.tryParse(match.group(5) ?? '0') ?? 0;
+        
+        return ParsedReference(book, chapter, verse);
+      }
+    } catch (e) {
+      debugPrint('Error parsing reference: $e');
+    }
+    return null;
+  }
+
   void submitAnswer() {
     if (isValidVerseRef(answerController.text)) {
       setState(() {
         hasSubmittedAnswer = true;
-        isAnswerCorrect = answerController.text.trim().toLowerCase() == expectedReference.toLowerCase();
+        
+        // Parse references for exact comparison
+        final expectedParts = _parseReference(expectedReference);
+        final userParts = _parseReference(answerController.text);
+        
+        if (expectedParts != null && userParts != null) {
+          // Check for exact match
+          isAnswerCorrect = userParts.book.toLowerCase() == expectedParts.book.toLowerCase() &&
+                          userParts.chapter == expectedParts.chapter && 
+                          userParts.verse == expectedParts.verse;
+        } else {
+          // Fall back to string comparison if parsing fails
+          isAnswerCorrect = answerController.text.trim().toLowerCase() == expectedReference.toLowerCase();
+        }
         
         if (isAnswerCorrect) {
           referenceRecallGrade = (referenceRecallGrade + 100) / 2;
@@ -117,7 +190,7 @@ class _RefTestScreenState extends State<RefTestScreen> {
         }
       });
       
-      debugPrint('Answer submitted: ${answerController.text}, Correct: $isAnswerCorrect, Grade: $referenceRecallGrade');
+      debugPrint('Answer submitted: ${answerController.text}, Correct: $isAnswerCorrect');
     } else {
       debugPrint('Invalid reference: ${answerController.text}');
     }
@@ -155,7 +228,7 @@ class _RefTestScreenState extends State<RefTestScreen> {
       hintText: 'Enter reference (e.g., Genesis 1:1)',
       errorText: isReferenceValid ? null : validationMessage,
       helperText: showSuccessStyle ? 'Correct!' : 
-                  showErrorStyle ? 'Incorrect' : 
+                  showErrorStyle ? getDetailedFeedback(answerController.text) : 
                   'Format: Book Chapter:Verse',
       helperStyle: TextStyle(
         color: showSuccessStyle ? Colors.green : 
@@ -399,7 +472,7 @@ class _RefTestScreenState extends State<RefTestScreen> {
                   child: Text(
                     isAnswerCorrect 
                         ? 'Great job! You correctly identified this verse as $expectedReference.'
-                        : 'That\'s not quite right. The correct reference is $expectedReference.',
+                        : getDetailedFeedback(answerController.text),
                     style: TextStyle(
                       color: isAnswerCorrect ? Colors.green : Colors.orange,
                     ),
@@ -566,5 +639,18 @@ class _RefTestScreenState extends State<RefTestScreen> {
     answerController.dispose();
     answerFocusNode.dispose();
     super.dispose();
+  }
+}
+
+class ParsedReference {
+  final String book;
+  final int chapter;
+  final int verse;
+  
+  ParsedReference(this.book, this.chapter, this.verse);
+  
+  @override
+  String toString() {
+    return '$book $chapter:$verse';
   }
 }
