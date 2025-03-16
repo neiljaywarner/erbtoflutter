@@ -28,8 +28,10 @@ class RefTestScreen extends StatefulWidget {
 
 class _RefTestScreenState extends State<RefTestScreen> {
   String pageTitle = 'Reference Test'; 
-  int questionNumber = 0;
-  String verseText = ''; 
+  int questionNumber = 1;
+  String verseText = "In the beginning God created the heavens and the earth.";
+  String verseAttribution = "NLT";
+  String expectedReference = "Genesis 1:1";
   final TextEditingController answerController = TextEditingController();
   double referenceRecallGrade = 60.0; 
   int overdueReferences = 5; 
@@ -60,6 +62,8 @@ class _RefTestScreenState extends State<RefTestScreen> {
 
   bool isReferenceValid = true;
   String validationMessage = '';
+  bool hasSubmittedAnswer = false;
+  bool isAnswerCorrect = false;
 
   bool isValidVerseRef(String text) {
     if (text.isEmpty) {
@@ -103,12 +107,72 @@ class _RefTestScreenState extends State<RefTestScreen> {
 
   void submitAnswer() {
     if (isValidVerseRef(answerController.text)) {
-      int questionScore = scoreRef(answerController.text);
-      double newGrade = updateRefGrade(questionScore);
-      debugPrint('Answer submitted: ${answerController.text}, Score: $questionScore, New Grade: $newGrade');
+      setState(() {
+        hasSubmittedAnswer = true;
+        isAnswerCorrect = answerController.text.trim().toLowerCase() == expectedReference.toLowerCase();
+        
+        if (isAnswerCorrect) {
+          referenceRecallGrade = (referenceRecallGrade + 100) / 2;
+          if (referenceRecallGrade > 100) referenceRecallGrade = 100;
+        }
+      });
+      
+      debugPrint('Answer submitted: ${answerController.text}, Correct: $isAnswerCorrect, Grade: $referenceRecallGrade');
     } else {
       debugPrint('Invalid reference: ${answerController.text}');
     }
+  }
+
+  InputDecoration getInputDecoration() {
+    final bool showSuccessStyle = hasSubmittedAnswer && isAnswerCorrect;
+    final bool showErrorStyle = hasSubmittedAnswer && !isAnswerCorrect;
+    
+    return InputDecoration(
+      border: OutlineInputBorder(
+        borderSide: BorderSide(
+          color: showSuccessStyle ? Colors.green : 
+                 showErrorStyle ? Colors.orange : 
+                 Colors.grey[300]!,
+          width: (showSuccessStyle || showErrorStyle) ? 2.0 : 1.0,
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(
+          color: showSuccessStyle ? Colors.green : 
+                 showErrorStyle ? Colors.orange : 
+                 Colors.grey[300]!,
+          width: (showSuccessStyle || showErrorStyle) ? 2.0 : 1.0,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(
+          color: showSuccessStyle ? Colors.green : 
+                 showErrorStyle ? Colors.orange : 
+                 Colors.blue,
+          width: 2.0,
+        ),
+      ),
+      hintText: 'Enter reference (e.g., Genesis 1:1)',
+      errorText: isReferenceValid ? null : validationMessage,
+      helperText: showSuccessStyle ? 'Correct!' : 
+                  showErrorStyle ? 'Incorrect' : 
+                  'Format: Book Chapter:Verse',
+      helperStyle: TextStyle(
+        color: showSuccessStyle ? Colors.green : 
+               showErrorStyle ? Colors.orange : 
+               Colors.grey[600],
+        fontWeight: (showSuccessStyle || showErrorStyle) ? FontWeight.bold : FontWeight.normal,
+      ),
+      suffixIcon: showSuccessStyle 
+          ? const Icon(Icons.check_circle, color: Colors.green)
+          : showErrorStyle 
+              ? const Icon(Icons.cancel, color: Colors.orange) 
+              : null,
+      filled: showSuccessStyle || showErrorStyle,
+      fillColor: showSuccessStyle ? Colors.green.withOpacity(0.1) : 
+                 showErrorStyle ? Colors.orange.withOpacity(0.1) : 
+                 null,
+    );
   }
 
   @override
@@ -165,160 +229,225 @@ class _RefTestScreenState extends State<RefTestScreen> {
 
   Widget _buildQuestionSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Container(
-          margin: const EdgeInsets.only(bottom: 16.0),
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 18.0,
+                color: Colors.black,
+              ),
+              children: <TextSpan>[
+                const TextSpan(text: 'Question: '),
+                TextSpan(
+                  text: '$questionNumber',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Verse text with NLT attribution - explicitly above the reference field
+        Container(
+          key: const Key('reftestVerse'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(16.0),
+          margin: const EdgeInsets.only(bottom: 24.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(5.0),
+            color: Colors.grey[50],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                      fontSize: 18.0,
-                      color: Colors.black,
-                    ),
-                    children: <TextSpan>[
-                      const TextSpan(text: 'Question: '),
-                      TextSpan(
-                        text: '$questionNumber',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
+            children: [
+              Text(
+                verseText,
+                style: const TextStyle(
+                  fontSize: 18.0,
+                  fontStyle: FontStyle.italic,
+                  height: 1.5,
                 ),
               ),
-              Container(
-                key: const Key('reftestVerse'),
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(5.0),
+              const SizedBox(height: 8.0),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  child: Text(
+                    verseAttribution,
+                    style: TextStyle(
+                      fontSize: 12.0,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                child: Text(verseText),
               ),
             ],
           ),
         ),
+        
+        // Reference label
+        Container(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: const Text(
+            'Reference:',
+            style: TextStyle(
+              fontSize: 18.0,
+              color: Colors.black,
+            ),
+          ),
+        ),
+        
+        // Simple text field with autocomplete options displayed below
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: const Text(
-                'Reference:',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            Autocomplete<String>(
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
+          children: [
+            TextField(
+              controller: answerController,
+              focusNode: answerFocusNode,
+              decoration: getInputDecoration(),
+              onChanged: (value) {
+                // Reset submission state when typing
+                if (hasSubmittedAnswer) {
+                  setState(() {
+                    hasSubmittedAnswer = false;
+                    isAnswerCorrect = false;
+                  });
                 }
-                return bookSuggestions.where((String option) {
-                  return option.toLowerCase().startsWith(
-                      textEditingValue.text.toLowerCase());
-                });
-              },
-              onSelected: (String selection) {
-                answerController.text = selection;
-                setState(() {
-                  isReferenceValid = true;
-                  validationMessage = '';
-                });
-              },
-              fieldViewBuilder: (
-                BuildContext context,
-                TextEditingController fieldController,
-                FocusNode fieldFocusNode,
-                VoidCallback onFieldSubmitted,
-              ) {
-                answerController.addListener(() {
-                  if (fieldController.text != answerController.text) {
-                    fieldController.text = answerController.text;
-                  }
-                });
                 
-                fieldController.text = answerController.text;
-                
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: fieldController,
-                      focusNode: fieldFocusNode,
-                      decoration: InputDecoration(
-                        border: const OutlineInputBorder(),
-                        hintText: 'Enter reference (e.g., Genesis 1:1)',
-                        errorText: isReferenceValid ? null : validationMessage,
-                        helperText: 'Format: Book Chapter:Verse',
-                        helperStyle: TextStyle(color: Colors.grey[600]),
-                      ),
-                      onChanged: (value) {
-                        answerController.text = value;
-                      },
-                      onSubmitted: (value) {
-                        answerController.text = value;
-                        submitAnswer();
-                      },
+                // Show autocomplete suggestions if we're typing a book name
+                setState(() {});
+              },
+              onSubmitted: (value) {
+                submitAnswer();
+              },
+            ),
+            
+            // Show book suggestions if relevant
+            if (_shouldShowSuggestions())
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                    if (!isReferenceValid && validationMessage.isNotEmpty)
-                      const SizedBox(height: 4),
                   ],
-                );
-              },
-              optionsViewBuilder: (
-                BuildContext context,
-                AutocompleteOnSelected<String> onSelected,
-                Iterable<String> options,
-              ) {
-                return Align(
-                  alignment: Alignment.topLeft,
-                  child: Material(
-                    elevation: 4.0,
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      width: MediaQuery.of(context).size.width * 0.4,
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.all(8.0),
-                        itemCount: options.length > 5 ? 5 : options.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final String option = options.elementAt(index);
-                          return ListTile(
-                            dense: true,
-                            title: Text(option),
-                            onTap: () {
-                              onSelected(option);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8.0),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                key: const Key('submit-ref'),
-                onPressed: submitAnswer,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                 ),
-                child: const Text('Submit'),
+                constraints: const BoxConstraints(
+                  maxHeight: 200,
+                ),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: _getFilteredSuggestions().map((book) {
+                    return ListTile(
+                      dense: true,
+                      title: Text(book),
+                      onTap: () {
+                        _selectBookSuggestion(book);
+                      },
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
           ],
         ),
+        
+        const SizedBox(height: 16.0),
+        
+        // Submit button
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            key: const Key('submit-ref'),
+            onPressed: submitAnswer,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Submit'),
+          ),
+        ),
+        
+        // Success/failure message (only shown after submission)
+        if (hasSubmittedAnswer)
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0),
+            child: Row(
+              children: [
+                Icon(
+                  isAnswerCorrect ? Icons.thumb_up : Icons.error_outline,
+                  color: isAnswerCorrect ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isAnswerCorrect 
+                        ? 'Great job! You correctly identified this verse as $expectedReference.'
+                        : 'That\'s not quite right. The correct reference is $expectedReference.',
+                    style: TextStyle(
+                      color: isAnswerCorrect ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
+  }
+
+  bool _shouldShowSuggestions() {
+    // Show suggestions if text is not empty and doesn't contain a space yet
+    final text = answerController.text.trim();
+    return text.isNotEmpty && !text.contains(' ') && _getFilteredSuggestions().isNotEmpty;
+  }
+  
+  List<String> _getFilteredSuggestions() {
+    final text = answerController.text.trim().toLowerCase();
+    if (text.isEmpty) return [];
+    
+    // Filter books that start with the current text
+    return bookSuggestions
+        .where((book) => book.toLowerCase().startsWith(text))
+        .take(5) // Limit to 5 suggestions
+        .toList();
+  }
+  
+  void _selectBookSuggestion(String book) {
+    setState(() {
+      // Add a space after the book name to prepare for entering chapter:verse
+      answerController.text = '$book ';
+      
+      // Position cursor at the end
+      answerController.selection = TextSelection.fromPosition(
+        TextPosition(offset: answerController.text.length),
+      );
+      
+      // Reset submission state if needed
+      if (hasSubmittedAnswer) {
+        hasSubmittedAnswer = false;
+        isAnswerCorrect = false;
+      }
+    });
+    
+    // Ensure focus returns to the text field
+    answerFocusNode.requestFocus();
   }
 
   Widget _buildStatsAndHistorySection() {
