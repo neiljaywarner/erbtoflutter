@@ -76,6 +76,8 @@ class _RefTestScreenState extends State<RefTestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isSmallScreen = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(pageTitle),
@@ -97,233 +99,241 @@ class _RefTestScreenState extends State<RefTestScreen> {
             ],
           ),
           margin: const EdgeInsets.all(16.0),
+          child: isSmallScreen
+              ? Column(
+                  children: [
+                    _buildQuestionSection(),
+                    const SizedBox(height: 24.0),
+                    _buildStatsAndHistorySection(),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(child: _buildQuestionSection()),
+                    const SizedBox(width: 16.0),
+                    Expanded(child: _buildStatsAndHistorySection()),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestionSection() {
+    return Column(
+      children: <Widget>[
+        Container(
+          margin: const EdgeInsets.only(bottom: 16.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      children: <Widget>[
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Container(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      fontSize: 18.0,
-                                      color: Colors.black,
-                                    ),
-                                    children: <TextSpan>[
-                                      const TextSpan(text: 'Question: '),
-                                      TextSpan(
-                                        text: '$questionNumber',
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                key: const Key('reftestVerse'),
-                                padding: const EdgeInsets.all(8.0),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(5.0),
-                                ),
-                                child: Text(verseText),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: const Text(
-                                'Reference:',
-                                style: TextStyle(
-                                  fontSize: 18.0,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                            Autocomplete<String>(
-                              optionsBuilder: (TextEditingValue textEditingValue) {
-                                if (textEditingValue.text.isEmpty) {
-                                  return const Iterable<String>.empty();
-                                }
-                                return bookSuggestions.where((String option) {
-                                  return option.toLowerCase().startsWith(
-                                        textEditingValue.text.toLowerCase());
-                                });
-                              },
-                              onSelected: (String selection) {
-                                answerController.text = selection;
-                              },
-                              fieldViewBuilder: (
-                                BuildContext context,
-                                TextEditingController fieldController,
-                                FocusNode fieldFocusNode,
-                                VoidCallback onFieldSubmitted,
-                              ) {
-                                answerController.addListener(() {
-                                  if (fieldController.text != answerController.text) {
-                                    fieldController.text = answerController.text;
-                                  }
-                                });
-                                
-                                fieldController.text = answerController.text;
-                                
-                                return TextField(
-                                  controller: fieldController,
-                                  focusNode: fieldFocusNode,
-                                  decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    hintText: 'Enter reference',
-                                  ),
-                                  onChanged: (value) {
-                                    answerController.text = value;
-                                  },
-                                  onSubmitted: (value) {
-                                    answerController.text = value;
-                                    submitAnswer();
-                                  },
-                                );
-                              },
-                              optionsViewBuilder: (
-                                BuildContext context,
-                                AutocompleteOnSelected<String> onSelected,
-                                Iterable<String> options,
-                              ) {
-                                return Align(
-                                  alignment: Alignment.topLeft,
-                                  child: Material(
-                                    elevation: 4.0,
-                                    child: Container(
-                                      constraints: const BoxConstraints(maxHeight: 200),
-                                      width: MediaQuery.of(context).size.width * 0.4,
-                                      child: ListView.builder(
-                                        shrinkWrap: true,
-                                        padding: const EdgeInsets.all(8.0),
-                                        itemCount: options.length > 5 ? 5 : options.length,
-                                        itemBuilder: (BuildContext context, int index) {
-                                          final String option = options.elementAt(index);
-                                          return ListTile(
-                                            dense: true,
-                                            title: Text(option),
-                                            onTap: () {
-                                              onSelected(option);
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 8.0),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton(
-                                key: const Key('submit-ref'),
-                                onPressed: submitAnswer,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-                                ),
-                                child: const Text('Submit'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+              Container(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 18.0,
+                      color: Colors.black,
                     ),
+                    children: <TextSpan>[
+                      const TextSpan(text: 'Question: '),
+                      TextSpan(
+                        text: '$questionNumber',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16.0),
-                  Expanded(
-                    child: Column(
-                      children: <Widget>[
-                        Container(
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(5.0),
-                          ),
-                          child: Column(
-                            children: <Widget>[
-                              Container(
-                                width: 200,
-                                height: 160,
-                                child: _buildGauge(),
-                              ),
-                              const SizedBox(height: 16.0),
-                              Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(5.0),
-                                  color: Colors.grey[100],
-                                ),
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  children: <Widget>[
-                                    Text(
-                                      '$overdueReferences',
-                                      style: const TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
-                                    ),
-                                    const Text(
-                                      'References Due Today',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 12.0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16.0),
-                        Container(
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(5.0),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              const Text(
-                                'Prior Questions',
-                                style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8.0),
-                              Container(
-                                key: const Key('past-questions'),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: pastQuestions.map((question) => Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                    child: Text(question),
-                                  )).toList(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
+              ),
+              Container(
+                key: const Key('reftestVerse'),
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(5.0),
+                ),
+                child: Text(verseText),
               ),
             ],
           ),
         ),
-      ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: const Text(
+                'Reference:',
+                style: TextStyle(
+                  fontSize: 18.0,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                if (textEditingValue.text.isEmpty) {
+                  return const Iterable<String>.empty();
+                }
+                return bookSuggestions.where((String option) {
+                  return option.toLowerCase().startsWith(
+                      textEditingValue.text.toLowerCase());
+                });
+              },
+              onSelected: (String selection) {
+                answerController.text = selection;
+              },
+              fieldViewBuilder: (
+                BuildContext context,
+                TextEditingController fieldController,
+                FocusNode fieldFocusNode,
+                VoidCallback onFieldSubmitted,
+              ) {
+                answerController.addListener(() {
+                  if (fieldController.text != answerController.text) {
+                    fieldController.text = answerController.text;
+                  }
+                });
+                
+                fieldController.text = answerController.text;
+                
+                return TextField(
+                  controller: fieldController,
+                  focusNode: fieldFocusNode,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Enter reference',
+                  ),
+                  onChanged: (value) {
+                    answerController.text = value;
+                  },
+                  onSubmitted: (value) {
+                    answerController.text = value;
+                    submitAnswer();
+                  },
+                );
+              },
+              optionsViewBuilder: (
+                BuildContext context,
+                AutocompleteOnSelected<String> onSelected,
+                Iterable<String> options,
+              ) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4.0,
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      width: MediaQuery.of(context).size.width * 0.4,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.all(8.0),
+                        itemCount: options.length > 5 ? 5 : options.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final String option = options.elementAt(index);
+                          return ListTile(
+                            dense: true,
+                            title: Text(option),
+                            onTap: () {
+                              onSelected(option);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8.0),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                key: const Key('submit-ref'),
+                onPressed: submitAnswer,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                ),
+                child: const Text('Submit'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsAndHistorySection() {
+    return Column(
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(5.0),
+          ),
+          child: Column(
+            children: <Widget>[
+              SizedBox(
+                width: 200,
+                height: 160,
+                child: _buildGauge(),
+              ),
+              const SizedBox(height: 16.0),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(5.0),
+                  color: Colors.grey[100],
+                ),
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: <Widget>[
+                    Text(
+                      '$overdueReferences',
+                      style: const TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
+                    ),
+                    const Text(
+                      'References Due Today',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12.0),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16.0),
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(5.0),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Prior Questions',
+                style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8.0),
+              Container(
+                key: const Key('past-questions'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: pastQuestions.map((question) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Text(question),
+                  )).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
